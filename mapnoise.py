@@ -16,8 +16,9 @@ import csv
 
 def within(p, lrbt):
 	return p[1] >= lrbt[0] and p[1] <= lrbt[1] and p[0] >= lrbt[2] and p[0] <= lrbt[3]
-	
-def getPoint(lrbt, alt, file):
+
+'''
+def getPointsFromFileByAlt(file, lrbt, alt):
 	p1 = []		# The first point where the flight hit the altitude
 	with open(file, 'rb') as csvfile:
 		csvDoc = csv.DictReader(csvfile, delimiter = ',', quotechar='"')
@@ -31,38 +32,80 @@ def getPoint(lrbt, alt, file):
 				p1 = p
 	csvfile.close()
 	return p1
+'''
+
+def getPointsFromFile(file, lrbt, alt):
+	points = []
+	with open(file, 'rb') as csvfile:
+		csvDoc = csv.DictReader(csvfile, delimiter = ',', quotechar='"')
+		for row in csvDoc:
+			altTmp = float(row['Altitude'])
+			if alt > 0:
+				if altTmp < alt - 50 or altTmp > alt + 50:
+					continue
+			pTmp = row['Position'].split(',')
+			p = [ float(pTmp[0]), float(pTmp[1]), altTmp ]
+			if within(p, lrbt): 
+				points.append(p)
+	csvfile.close()
+	return points
 			
 def getPoints(lrbt, dir, mon, alt):
 	points = []		# Sample: [ [37.3296,-121.979] ]
 	misses = 0
 	datadir = os.path.join(dir, mon)
 	for f in os.listdir(datadir):
+		'''
 		#p = getPoint(lrbt, alt, 'data/AS200_a5e3115.csv')
 		p = getPoint(lrbt, alt, os.path.join(datadir, f))
 		if p:
 			points.append(p)
 		else:
 			misses += 1
+		'''
+		tmp = getPointsFromFile(os.path.join(datadir, f), lrbt, alt)
+		if tmp:
+			points += tmp
+		else:
+			misses += 1
 	return points, misses
 
-def getXY(points, lrbt, w, h):
+def getXYC(points, lrbt, w, h):
 	wtmp = w / (lrbt[1] - lrbt[0])
 	htmp = h / (lrbt[3] - lrbt[2])
 	x = []
 	y = []
+	c = []
 	for p in points:
 		if p[1] >= lrbt[0] and p[1] <= lrbt[1] and p[0] >= lrbt[2] and p[0] <= lrbt[3]:
 			x.append((p[1] - lrbt[0]) * wtmp)
 			y.append((p[0] - lrbt[2]) * htmp)
-	return x,y
+			if p[2] > 6000:
+				c.append('blue')
+			elif p[2] > 5000:
+				c.append('royalblue')
+			elif p[2] > 4000:
+				c.append('mediumpurple')
+			elif p[2] > 3000:
+				c.append('violet')
+			elif p[2] > 2000:
+				c.append('magenta')
+			elif p[2] > 1000:
+				c.append('deeppink')
+			else:
+				c.append('crimson')
+	return x,y,c
 
 def usage():
-	print 'Usage: mapnoise.py -d <DataDir> -m <YYYY-MM> -a <Altitude>'
+	print 'Usage: '
+	print '    mapnoise.py -d <DataDir> -m <YYYY-MM> -a <Altitude>'
+	print '    <Altitude>:  0: all altitudes'
+	print '                >0: the specified altitude'
 
 def main(argv):
 	DIR = 'data'
 	MON = "2016-05"
-	ALT = 3000
+	ALT = 0
 	try:
 		opts, args = getopt.getopt(argv,"ha:d:m:")
 	except getopt.GetoptError:
@@ -101,8 +144,8 @@ def main(argv):
 	# Load GPS points
 	points,misses = getPoints(mapGps, DIR, MON, ALT)
 	# Convert to x,y coordinates
-	x,y = getXY(points, mapGps, W, H)
-	plt.scatter(x,y,zorder=1)
+	x,y,c = getXYC(points, mapGps, W, H)
+	plt.scatter(x,y,color=c,zorder=1)
 	plt.title("Month: " + MON + ", Altitude: " + str(ALT) + ', Misses: ' + str(misses))
 	plt.show()
 
