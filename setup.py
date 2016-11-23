@@ -32,6 +32,7 @@ def find_data_files(source,target,patterns):
 
 my_data_files = find_data_files('','',[
 	'images/*',
+	'sample-data/*/*',
 ])
 
 #my_data_files=[('images', ['images\svmap.png'])]
